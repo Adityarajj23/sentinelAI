@@ -1,12 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
-import { ShieldAlert, Activity, Cpu, Sparkles, ShieldCheck, Play, Pause, Siren, ChevronDown, ChevronUp, Filter, Settings2 } from 'lucide-react';
+import { ShieldAlert, Activity, Cpu, Sparkles, ShieldCheck, Play, Pause, Siren, ChevronDown, ChevronUp, Filter, Settings2, Clock3 } from 'lucide-react';
 import './index.css';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.PROD ? '' : 'http://localhost:5000');
 const OFFLINE_CACHE_KEY = 'sentinel_offline_data';
 const DEMO_TOKEN_KEY = 'sentinel_demo_admin_token';
 const DEMO_TOKEN_FALLBACK = import.meta.env.VITE_DEMO_ADMIN_TOKEN || '';
+const CHART_WINDOWS = ['1h', '5h', '24h'];
+const WINDOW_META = {
+  '1h': { label: 'Last 1 hour', bucket: '1-minute buckets' },
+  '5h': { label: 'Last 5 hours', bucket: '5-minute buckets' },
+  '24h': { label: 'Last 24 hours', bucket: '15-minute buckets' },
+};
 
 function App() {
   const [alerts, setAlerts] = useState([]);
@@ -22,10 +28,11 @@ function App() {
   const [demoPanelOpen, setDemoPanelOpen] = useState(false);
   const [selectedType, setSelectedType] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
+  const [selectedWindow, setSelectedWindow] = useState('1h');
 
   const fetchDashboardData = async () => {
     try {
-      const resp = await fetch(`${API_BASE_URL}/api/dashboard`);
+      const resp = await fetch(`${API_BASE_URL}/api/dashboard?window=${selectedWindow}`);
       if (!resp.ok) throw new Error("Backend error");
       const data = await resp.json();
       setAlerts(data.alerts);
@@ -49,8 +56,8 @@ function App() {
         // Fallback UI data if no cache exists
         setStats({ requests: 842, anomalies: 2, activeIps: 5 });
         setChartData([
-          { time: '12:00', reqs: 12 }, { time: '12:01', reqs: 18 },
-          { time: '12:02', reqs: 140 }, { time: '12:03', reqs: 15 }
+          { time: '12:00', reqs: 12 }, { time: '12:10', reqs: 18 },
+          { time: '12:20', reqs: 140 }, { time: '12:30', reqs: 15 }
         ]);
         setAlerts([
           { id: "mock1", ip_address: '99.99.99.99', type: 'Rule-based', reason: 'Offline Mock: High request rate.' }
@@ -151,19 +158,19 @@ function App() {
     return typeMatches && statusMatches;
   });
 
+  const currentWindowMeta = WINDOW_META[selectedWindow] || WINDOW_META['1h'];
+
   useEffect(() => {
     fetchDashboardData();
-    fetchDemoStatus();
-  }, []);
-
-  useEffect(() => {
-    if (!demoState.running) {
-      return undefined;
-    }
-
     const interval = setInterval(fetchDashboardData, 5000);
     return () => clearInterval(interval);
-  }, [demoState.running]);
+  }, [selectedWindow]);
+
+  useEffect(() => {
+    fetchDemoStatus();
+    const demoInterval = setInterval(fetchDemoStatus, 5000);
+    return () => clearInterval(demoInterval);
+  }, []);
 
   const explainAnomaly = async (alertId, ip) => {
     setInsightData(prev => ({ ...prev, [alertId]: "Loading AI Analysis..." }));
@@ -192,7 +199,7 @@ function App() {
       <div className="grid-metrics">
         <div className="glass-panel metric-card">
           <div className="metric-title metric-title-row">
-            <Activity size={16} /> Total Traffic (1h)
+            <Activity size={16} /> Total Traffic ({selectedWindow})
           </div>
           <div className="metric-value">{stats.requests}</div>
         </div>
@@ -277,40 +284,29 @@ function App() {
         </div>
       )}
 
-      <div className="glass-panel filters-panel">
-        <div className="panel-header">
-          <h2 className="panel-title panel-title-row"><Filter size={18} /> Alert Filters</h2>
-          <span className="panel-chip">{filteredAlerts.length} shown</span>
-        </div>
-        <div className="filter-row">
-          <label className="filter-field">
-            <span>Type</span>
-            <select value={selectedType} onChange={(e) => setSelectedType(e.target.value)}>
-              <option value="all">All</option>
-              <option value="Rule-based">Rule-based</option>
-              <option value="ML-based">ML-based</option>
-            </select>
-          </label>
-          <label className="filter-field">
-            <span>Status</span>
-            <select value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)}>
-              <option value="all">All</option>
-              <option value="new">New</option>
-              <option value="investigating">Investigating</option>
-              <option value="resolved">Resolved</option>
-            </select>
-          </label>
-        </div>
-      </div>
-
       <div className="grid-main">
         <div className="glass-panel">
           <div className="panel-header">
             <h2 className="panel-title">Traffic Volume / Minute</h2>
             <span className="panel-chip">
-              Last 1 Hour
+              {currentWindowMeta.label}
             </span>
           </div>
+          <div className="window-switcher" role="tablist" aria-label="Traffic chart time range">
+            <div className="window-switcher-label"><Clock3 size={14} /> Time Window</div>
+            <div className="window-switcher-buttons">
+              {CHART_WINDOWS.map((windowKey) => (
+                <button
+                  key={windowKey}
+                  className={`btn-window ${selectedWindow === windowKey ? 'btn-window-active' : ''}`}
+                  onClick={() => setSelectedWindow(windowKey)}
+                >
+                  {windowKey}
+                </button>
+              ))}
+            </div>
+          </div>
+          <p className="chart-meta">Aggregation: {currentWindowMeta.bucket}</p>
           <div className="chart-container">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData}>
@@ -324,46 +320,74 @@ function App() {
           </div>
         </div>
 
-        <div className="glass-panel">
-          <div className="panel-header">
-            <h2 className="panel-title">Recent Alerts</h2>
-            <span className="panel-chip">
-              Latest 20 Anomalies
-            </span>
+        <div className="alerts-column">
+          <div className="glass-panel filters-panel">
+            <div className="panel-header">
+              <h2 className="panel-title panel-title-row"><Filter size={18} /> Alert Filters</h2>
+              <span className="panel-chip">{filteredAlerts.length} shown</span>
+            </div>
+            <div className="filter-row">
+              <label className="filter-field">
+                <span>Type</span>
+                <select value={selectedType} onChange={(e) => setSelectedType(e.target.value)}>
+                  <option value="all">All</option>
+                  <option value="Rule-based">Rule-based</option>
+                  <option value="ML-based">ML-based</option>
+                </select>
+              </label>
+              <label className="filter-field">
+                <span>Status</span>
+                <select value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)}>
+                  <option value="all">All</option>
+                  <option value="new">New</option>
+                  <option value="investigating">Investigating</option>
+                  <option value="resolved">Resolved</option>
+                </select>
+              </label>
+            </div>
           </div>
-          <div className="alert-list">
-            {filteredAlerts.length === 0 ? (
-              <p className="empty-state">No anomalies detected yet.</p>
-            ) : (
-              filteredAlerts.map((alert) => (
-                <div key={alert.id || alert._id} className="alert-item">
-                  <div className="alert-header">
-                    <span className="alert-ip">{alert.ip_address}</span>
-                    <div className="alert-badges">
-                      <span className="alert-badge">{alert.type}</span>
-                      <span className={`alert-status-badge alert-status-${(alert.status || 'new').toLowerCase()}`}>{alert.status || 'new'}</span>
+
+          <div className="glass-panel">
+            <div className="panel-header">
+              <h2 className="panel-title">Recent Alerts</h2>
+              <span className="panel-chip">
+                Latest 20 Anomalies
+              </span>
+            </div>
+            <div className="alert-list">
+              {filteredAlerts.length === 0 ? (
+                <p className="empty-state">No anomalies detected yet.</p>
+              ) : (
+                filteredAlerts.map((alert) => (
+                  <div key={alert.id || alert._id} className="alert-item">
+                    <div className="alert-header">
+                      <span className="alert-ip">{alert.ip_address}</span>
+                      <div className="alert-badges">
+                        <span className="alert-badge">{alert.type}</span>
+                        <span className={`alert-status-badge alert-status-${(alert.status || 'new').toLowerCase()}`}>{alert.status || 'new'}</span>
+                      </div>
                     </div>
-                  </div>
-                  <div className="alert-reason">{alert.reason}</div>
-                  <div className="alert-meta">
-                    <span className="alert-meta-chip">Severity: {alert.severity || 'medium'}</span>
-                    <span className="alert-meta-chip">Confidence: {alert.confidence ?? 70}%</span>
-                  </div>
-                  <div className="alert-actions">
-                    <button className="btn-mini" onClick={() => updateAlertStatus(alert.id || alert._id, 'investigating')}>Investigating</button>
-                    <button className="btn-mini" onClick={() => updateAlertStatus(alert.id || alert._id, 'resolved')}>Resolved</button>
-                  </div>
-                  <button className="btn-insight" onClick={() => explainAnomaly(alert.id || alert._id, alert.ip_address)}>
-                    <Sparkles size={14} /> Explain Anomaly
-                  </button>
-                  {insightData[alert.id || alert._id] && (
-                    <div className="ai-insight-box">
-                      <strong>AI Insight:</strong> {insightData[alert.id || alert._id]}
+                    <div className="alert-reason">{alert.reason}</div>
+                    <div className="alert-meta">
+                      <span className="alert-meta-chip">Severity: {alert.severity || 'medium'}</span>
+                      <span className="alert-meta-chip">Confidence: {alert.confidence ?? 70}%</span>
                     </div>
-                  )}
-                </div>
-              ))
-            )}
+                    <div className="alert-actions">
+                      <button className="btn-mini" onClick={() => updateAlertStatus(alert.id || alert._id, 'investigating')}>Investigating</button>
+                      <button className="btn-mini" onClick={() => updateAlertStatus(alert.id || alert._id, 'resolved')}>Resolved</button>
+                    </div>
+                    <button className="btn-insight" onClick={() => explainAnomaly(alert.id || alert._id, alert.ip_address)}>
+                      <Sparkles size={14} /> Explain Anomaly
+                    </button>
+                    {insightData[alert.id || alert._id] && (
+                      <div className="ai-insight-box">
+                        <strong>AI Insight:</strong> {insightData[alert.id || alert._id]}
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
       </div>
