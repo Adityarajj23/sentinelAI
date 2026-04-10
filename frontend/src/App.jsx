@@ -308,15 +308,61 @@ function App() {
           </div>
           <p className="chart-meta">Aggregation: {currentWindowMeta.bucket}</p>
           <div className="chart-container">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                <XAxis dataKey="time" stroke="#a0aab2" />
-                <YAxis stroke="#a0aab2" />
-                <Tooltip contentStyle={{ backgroundColor: '#1a1c23', border: 'none', borderRadius: '8px' }} />
-                <Line type="monotone" dataKey="reqs" stroke="var(--accent-blue)" strokeWidth={3} dot={{ fill: 'var(--accent-blue)', r: 4 }} activeDot={{ r: 6 }} />
-              </LineChart>
-            </ResponsiveContainer>
+            {chartData.length === 0 ? (
+              <p className="chart-empty">No request data for this time window yet.</p>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData} margin={{ top: 16, right: 16, left: -8, bottom: 10 }}>
+                  <defs>
+                    <linearGradient id="reqLine" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%" stopColor="#7bf0ff" />
+                      <stop offset="100%" stopColor="#ffc857" />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="4 4" stroke="rgba(121, 164, 230, 0.2)" vertical={false} />
+                  <XAxis
+                    dataKey="time"
+                    tick={{ fill: '#dce9ff', fontSize: 12 }}
+                    axisLine={{ stroke: 'rgba(121, 164, 230, 0.28)' }}
+                    tickLine={{ stroke: 'rgba(121, 164, 230, 0.35)' }}
+                    minTickGap={20}
+                  />
+                  <YAxis
+                    tick={{ fill: '#dce9ff', fontSize: 12 }}
+                    axisLine={{ stroke: 'rgba(121, 164, 230, 0.28)' }}
+                    tickLine={{ stroke: 'rgba(121, 164, 230, 0.35)' }}
+                    allowDecimals={false}
+                  />
+                  <Tooltip
+                    cursor={{ stroke: 'rgba(77, 213, 255, 0.35)', strokeWidth: 1 }}
+                    contentStyle={{
+                      backgroundColor: 'rgba(7, 14, 24, 0.95)',
+                      border: '1px solid rgba(77, 213, 255, 0.35)',
+                      borderRadius: '10px',
+                    }}
+                    labelStyle={{ color: '#ecf3ff', fontWeight: 700 }}
+                    itemStyle={{ color: '#7bf0ff', fontWeight: 700 }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="reqs"
+                    stroke="rgba(77, 213, 255, 0.22)"
+                    strokeWidth={9}
+                    dot={false}
+                    activeDot={false}
+                    isAnimationActive={false}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="reqs"
+                    stroke="url(#reqLine)"
+                    strokeWidth={3.4}
+                    dot={{ r: 3.6, fill: '#7bf0ff', stroke: '#0a1322', strokeWidth: 1 }}
+                    activeDot={{ r: 6.5, fill: '#ffc857', stroke: '#ffffff', strokeWidth: 1.2 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </div>
 
