@@ -385,6 +385,3 @@ Env:
 
 ---
 
-## License
-
-MIT
