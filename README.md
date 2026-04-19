@@ -92,7 +92,7 @@ SentinelAI monitors API traffic in real-time and surfaces suspicious behavior th
 | **Data** | MongoDB 4.5, PyMongo | Logs, alerts, control state storage |
 | **ML** | pandas 2.1, scikit-learn (Isolation Forest) | Anomaly detection |
 | **AI** | Google Gemini API | Natural language explanations (optional) |
-| **Deployment** | Render (Web + Background Workers), Vercel | Cloud hosting |
+| **Deployment** | Render(Main server) + Railway(Background Workers), Vercel | Cloud hosting |
 
 ---
 
